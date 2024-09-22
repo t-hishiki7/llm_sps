@@ -1,0 +1,17 @@
+{
+    "USE_PERSONALITY": true,
+    "N": 50,
+    "T": 2,
+    "W": 100,
+    "SEED": 101,
+    "R": 20,
+    "SPEED": 7,
+    "PMUT": 0.03,
+    "PR": 1.2,
+    "PT": 1.4,
+    "PS": -1.4,
+    "PP": -1.0,
+    "MODEL": "lmstudio-community/Meta-Llama-3.1-8B-Instruct-GGUF",
+    "execution_time_seconds": 1295.8135662078857,
+    "execution_time_formatted": "00:21:35.81"
+}

@@ -1,8 +1,8 @@
 .env
 __pycache__/
 .vscode/
-result/
-sps_simulation_20240919_022208/
+#result/
+#sps_simulation_20240919_022208/
 test/
 
 
