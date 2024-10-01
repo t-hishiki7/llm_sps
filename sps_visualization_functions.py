@@ -77,6 +77,14 @@ def create_personality_visualizations(agents, base_folder):
             plt.savefig(os.path.join(plots_folder, f'{y_attribute}_{trait}.png'))
             plt.close()
 
-    fig.update_layout(height=1200, width=2000, showlegend=False)
+    fig.update_layout(height=1200, 
+                      width=2000, 
+                      showlegend=False,
+                      hoverlabel=dict(            
+                          bgcolor="white",            
+                          font_size=35,            
+                          font_family="Arial"        
+                          )
+    )
 
     fig.write_html(os.path.join(base_folder, 'personality_visualizations.html'))

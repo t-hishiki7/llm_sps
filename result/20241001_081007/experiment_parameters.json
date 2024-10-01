@@ -1,0 +1,17 @@
+{
+    "USE_PERSONALITY": false,
+    "N": 50,
+    "T": 1,
+    "W": 100,
+    "SEED": 101,
+    "R": 20,
+    "SPEED": 7,
+    "PMUT": 0.03,
+    "PR": 1.2,
+    "PT": 1.4,
+    "PS": -1.4,
+    "PP": -1.0,
+    "MODEL": null,
+    "execution_time_seconds": 0.7297368049621582,
+    "execution_time_formatted": "00:00:00.73"
+}

@@ -1,6 +1,6 @@
 import numpy as np
 import random
-from openai import OpenAI
+from ollama import Client
 import json
 import os
 import pandas as pd
@@ -15,15 +15,15 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
-USE_PERSONALITY = True  
+USE_PERSONALITY = True
 USE_NEIGHBOR_PERSONALITY = False  
 
-MODEL = os.getenv("MODEL")
+MODEL = "gemma2"
 LINE_TOKEN = os.getenv("LINE_TOKEN")
 
 # Constants and Global Variables
 N = 50  # Number of agents
-T = 2  # Total simulation steps,
+T = 1  # Total simulation steps,
 W = 100  # World size
 SEED = 101
 R = 20  # Interaction radius
@@ -98,82 +98,63 @@ class Agent:
             "interaction_radius": R
         }
 
-        system_message = f"""
-        You are an AI agent participating in the Social Particle Swarm (SPS) model experiment. Your role is to make decisions that maximize your total payoff while interacting with other agents in a simulated environment.
+        prompt = f""" 
+        Your goal is to maximize your total payoff by strategically choosing to Cooperate or Defect with other participants, and by moving effectively within the 2D environment.
+        You will make decisions each round, but you should consider the impact of your actions on future rounds.
 
-        Details of the SPS model experiment:
+        #Explanation of the SPS model
+        **1. Environment:**
+        * You are represented as a particle in a 2D space.
+        * You can interact with particles within your interaction radius (R = {R}).
 
-        1. Environment:
-           - You exist in a 2D space where your position represents your social relationships.
-           - You can interact only with particles within your interaction radius(R).
+        **2. Interaction rules:**
+        - Payoff structure: Based on the Prisoner's Dilemma game.
+         * Both Cooperate (CC): Both gain moderate positive payoff ({PR})
+         * Both Defect (DD): Both receive small negative payoff ({PP})
+         * One Cooperates, One Defects (CD):
+           - Cooperator: Severe negative payoff ({PS}) (sucker's payoff)
+           - Defector: Large positive payoff ({PT}) (temptation payoff)
+        - Important: The payoff gained in one step is divided by the distance between particles. This means interactions with closer particles have a greater impact.
 
-        2. Interaction rules:
-           - Payoff structure:
-             * Both Cooperate (CC): Both gain moderate payoff
-             * Both Defect (DD): Both receive small loss
-             * One Cooperates, One Defects (CD):
-               - Cooperator: Severe loss (sucker's payoff)
-               - Defector: Large payoff (temptation payoff)
-           - Important: The payoff gained in one step is divided by the distance between particles. This means interactions with closer particles have a greater impact.
-
-        3. Your task:
-           In each round, you will make two simultaneous decisions:
-           a. Cooperation: Choose to Cooperate or Defect with nearby particles.
+        **3. Your Task:**
+        * In each round, you will make two simultaneous decisions:
+        *   a. Strategy: Choose to Cooperate or Defect with nearby particles.
               - You may choose to defect against cooperators and move closer to them to maximize your own payoff.
               - Alternatively, you may choose to cooperate with other cooperators and move closer to them to improve both your payoffs.
         
-           b. Movement: Decide how far to move from your current position in the 2D space.
-              - You can move towards particles that have brought you benefits.
-              - You can move away from particles that have caused you losses.
+        *   b. Movement: Decide how far to move from your current position in the 2D space.
+              - You can move towards particles that have brought you positive payoff.
+              - You can move away from particles that have caused you negative payoff.
+        * Each round, choose your *Strategy* and *Movement*:
 
-        4. Objective: Maximize your payoff through strategic decisions and movement.
+        **4. Objective:** Maximize your total payoff at the end of the game. Consider not only the current round's payoff but also the potential payoffs in future rounds.
 
-        5. Key considerations:
-           - Your position determines which particles you can interact with and directly affects the magnitude of payoffs you receive.
-           - Closing proximity to beneficial particles can potentially yield larger payoffs.
-           - Leaving from harmful particles can minimize losses.
-           - Strategic positioning is crucial as it directly impacts your payoffs.
-           - The environment is dynamic; other particles are also making decisions.
-         """
-
-        prompt = f"""
-        {"Current Personality Traits(each trait is represented on a scale from 0 to 1, where 0 indicates a low level of the trait and 1 indicates a high level):" + json.dumps(vars(self.personality), indent=2) if USE_PERSONALITY else ""}
-
-        Current Experimental Context:
+        **5. Current State and Context:**
         {json.dumps(context, indent=2)}
 
-        Task:
-        Based on the SPS model description{", your personality traits," if USE_PERSONALITY else ""} and the current context, determine your next action and strategy.
+        {"**6. Personality Traits (0.0 - 1.0):**\n" + json.dumps(vars(self.personality), indent=2) if USE_PERSONALITY else ""}
 
-        Required Response Format:
+        **Task:** Based on the rules, your current context{" and personality traits" if USE_PERSONALITY else ""}, determine your next action.  Consider the positions of neighboring particles and devise a long-term strategy.
+
+        **Response Format (Strictly adhere to this format):**
         Action: [magnitude, direction] (magnitude should be between 0 and {SPEED}, direction should be between 0 and 360 degrees)
         Strategy: (Cooperate/Defect)
-        Reasoning: Provide a concise explanation (2-3 sentences) for your decision, focusing on:
+        Reasoning: Provide a concise explanation (1-2 sentences) for your decision, focusing on:
            {"- How it aligns with your personality traits\n" if USE_PERSONALITY else ""}           
             - How it responds to the current context"
-
-        Important Considerations:
-        {"- Your decision should reflect your unique personality traits\n" if USE_PERSONALITY else ""}        
-         - Account for neighboring agents' information and your current state        
-         - All neighboring particles' information should be considered.
-        
-        Respond only with the required format. Do not include any additional commentary or questions.
         """
 
         try:
-            completion = client.chat.completions.create(
+            response = client.chat(
                 model=MODEL,
                 messages=[
-                    {"role": "system", "content": system_message},
+                    {"role": "system", "content": "You are a participant in a Social Particle Swarm (SPS) experiment."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.7,
-                
             )
-
-            response_text = completion.choices[0].message.content
+            response_text = response['message']['content'] 
             action, strategy, reasoning = self.parse_llm_response(response_text)
-
+            
             self.action = action
             self.x_next, self.y_next = self.polar_to_cartesian(action[0], action[1])
             self.state_next = 1 if strategy.lower() == "cooperate" else 0
@@ -250,7 +231,7 @@ def create_animation(df):
                         subplot_titles=('Agent Positions', 'Cooperation Ratio'),
                         specs=[[{'type': 'scatter'}, {'type': 'scatter'}]])
     
-    def format_reasoning(reasoning, max_line_length=50):
+    def format_reasoning(reasoning, max_line_length=80):
         words = reasoning.split()
         lines = []
         current_line = []
@@ -269,18 +250,26 @@ def create_animation(df):
 
     def create_hover_text(row):
         formatted_reasoning = format_reasoning(row['reasoning'])
-        return (f"ID: {row['agent_id']}<br>"
-                f"State: {'Cooperate' if row['state'] == 1 else 'Defect'}<br>"
-                f"Big Five: {row['personality']}<br>"
-                f"Action: Distance={row['action_magnitude']:.2f}, Angle={row['action_direction']:.2f}°<br>"
-                f"Reasoning:<br>{formatted_reasoning}")
+        return (f"<b>ID:</b> {row['agent_id']}<br>"
+                f"<b>State:</b> {'Cooperate' if row['state'] == 1 else 'Defect'}<br>"
+                f"<b>Big Five:</b> {row['personality']}<br>"
+                f"<b>Action:</b> Distance={row['action_magnitude']:.2f}, Angle={row['action_direction']:.2f}°<br>"
+                f"<b>Score:</b> {row['score']:.2f}<br>"
+                f"<b>Payoff:</b> {row['payoff']:.2f}<br>"
+                f"<b>Reasoning:</b><br>{formatted_reasoning}")
+    
+    min_score = df['score'].min()
+    max_score = df['score'].max()
+    def score_to_size(score):
+        return 10 + (score - min_score) / (max_score - min_score) * 15
 
     scatter = go.Scatter(
         x=df[df['time'] == 0]['x'],
         y=df[df['time'] == 0]['y'],
         mode='markers',
         marker=dict(
-            size=8,
+            size=df[df['time'] == 0]['score'].apply(score_to_size),
+            #size=12,
             color=df[df['time'] == 0]['state'],
             colorscale=['red', 'blue'],
             showscale=False
@@ -303,7 +292,12 @@ def create_animation(df):
         xaxis=dict(range=[0, W], title='X'),
         yaxis=dict(range=[0, W], title='Y'),
         xaxis2=dict(title='Time Step'),
-        yaxis2=dict(title='Cooperation Ratio', range=[0, 1])
+        yaxis2=dict(title='Cooperation Ratio', range=[0, 1]),
+        hoverlabel=dict(
+            bgcolor="white",
+            font_size=35,
+            font_family="Arial"
+        )
     )
     
     frames = [go.Frame(
@@ -313,7 +307,8 @@ def create_animation(df):
                 y=df[df['time'] == t]['y'],
                 mode='markers',
                 marker=dict(
-                    size=8,
+                    size=df[df['time'] == t]['score'].apply(score_to_size),  
+                    #size=12,
                     color=df[df['time'] == t]['state'],
                     colorscale=['red', 'blue'],
                     showscale=False
@@ -339,7 +334,7 @@ def create_animation(df):
             showactive=False,
             buttons=[dict(label='Play',
                           method='animate',
-                          args=[None, dict(frame=dict(duration=100, redraw=True), fromcurrent=True)]),
+                          args=[None, dict(frame=dict(duration=50, redraw=True), fromcurrent=True)]),
                      dict(label='Pause',
                           method='animate',
                           args=[[None], dict(frame=dict(duration=0, redraw=False), mode='immediate')])]
@@ -365,7 +360,7 @@ def main():
     global agents, client
     random.seed(SEED)
     agents = [Agent(i) for i in range(N)]
-    client = OpenAI(base_url="http://localhost:1234/v1", api_key="lm-studio")
+    client = Client(host='http://localhost:11434') 
 
     start_time = time.time()
     
@@ -375,7 +370,7 @@ def main():
     
     all_data = []
     for t in range(T):
-        print(f"Step: {t} completed")
+        print(f"Step{t}")
         for agent in agents:
             agent.calc()
         

@@ -1,0 +1,17 @@
+{
+    "USE_PERSONALITY": false,
+    "N": 50,
+    "T": 3,
+    "W": 100,
+    "SEED": 101,
+    "R": 30,
+    "SPEED": 10,
+    "PMUT": 0.03,
+    "PR": 1.2,
+    "PT": 1.4,
+    "PS": -1.4,
+    "PP": -1.0,
+    "MODEL": "gemini-1.5-flash-002",
+    "execution_time_seconds": 121.84868907928467,
+    "execution_time_formatted": "00:02:01.85"
+}

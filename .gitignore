@@ -4,5 +4,7 @@ __pycache__/
 #result/
 #sps_simulation_20240919_022208/
 test/
+*.pyc
+.pytest_cache
 
 
